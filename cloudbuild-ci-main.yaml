@@ -1,0 +1,45 @@
+steps: 
+- name: 'gcr.io/google-samples/intro-to-krm/skaffold-mvn:latest'
+  id: Build production images 
+  entrypoint: /bin/sh
+  args:
+  - '-c'
+  - |
+    skaffold build --profile prod --default-repo="gcr.io/${PROJECT_ID}/cymbal-bank/release" --tag ${SHORT_SHA}
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: Image tags -> cymbalbank-app-config manifests 
+  entrypoint: /bin/sh
+  args:
+  - '-c'
+  - |
+    set -x 
+    git clone https://github.com/$$GITHUB_USERNAME/cymbalbank-app-config && \
+    cd cymbalbank-app-config && \
+    git checkout main 
+    
+    git config user.email $$GITHUB_EMAIL
+    git config user.name $$GITHUB_USERNAME 
+    git remote set-url origin https://$$GITHUB_USERNAME:$$GITHUB_TOKEN@github.com/$$GITHUB_USERNAME/cymbalbank-app-config.git
+
+    for f in manifests/; do 
+        SERVICE_NAME="`basename $f .yaml`"
+        SUBST="image: gcr.io/${PROJECT_ID}/cymbal-bank/release/${SERVICE_NAME}:${SHORT_SHA}"
+        echo "Injecting image tag: $SUBST > $f"  
+        sed -i "s|image:*$SERVICE_NAME|$SUBST|g" $f 
+        cat $f 
+    done 
+
+    git add . && \
+    git commit -m "Updated image tag: ${SHORT_SHA}
+    Built from commit ${COMMIT_SHA} of repository cymbalbank-app-source - main branch 
+    Author: $(git log --format='%an <%ae>' -n 1 HEAD)" && \
+    git push origin main
+availableSecrets:
+  secretManager:
+  - versionName: projects/${PROJECT_ID}/secrets/github-username/versions/1 
+    env: 'GITHUB_USERNAME'
+  - versionName: projects/${PROJECT_ID}/secrets/github-token/versions/1 
+    env: 'GITHUB_TOKEN'
+  - versionName: projects/${PROJECT_ID}/secrets/github-email/versions/1 
+    env: 'GITHUB_EMAIL'
+timeout: '1200s' #timeout - 20 minutes
