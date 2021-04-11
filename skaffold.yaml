@@ -1,0 +1,49 @@
+apiVersion: skaffold/v2alpha4
+kind: Config
+build:
+  artifacts:
+  - image: frontend
+    context: src/frontend
+  - image: ledgerwriter
+    jib:
+      project: src/ledgerwriter
+  - image: balancereader
+    jib:
+      project: src/balancereader
+  - image: transactionhistory
+    jib:
+      project: src/transactionhistory
+  - image: contacts
+    context: src/contacts
+  - image: userservice
+    context: src/userservice
+  - image: loadgenerator
+    context: src/loadgenerator
+  tagPolicy:
+    gitCommit: {}
+deploy:
+  statusCheckDeadlineSeconds: 300
+  kustomize: {}
+portForward:
+- resourceType: deployment
+  resourceName: frontend
+  namespace: frontend
+  port: 8080
+  address: 127.0.0.1
+  localPort: 80
+profiles:
+  - name: dev
+    deploy: 
+      kustomize: 
+        paths:
+          - "cymbalbank-app-config/overlays/dev"
+  - name: staging
+    deploy: 
+      kustomize: 
+        paths:
+          - "cymbalbank-app-config/overlays/prod"
+  - name: prod
+    deploy: 
+      kustomize: 
+        paths:
+          - "cymbalbank-app-config/overlays/prod"
