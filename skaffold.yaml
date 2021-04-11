@@ -21,8 +21,6 @@ build:
     context: src/loadgenerator
   tagPolicy:
     gitCommit: {}
-  local: 
-    concurrency: 4 
 deploy:
   statusCheckDeadlineSeconds: 300
   kustomize: {}
